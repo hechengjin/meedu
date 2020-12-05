@@ -63,7 +63,6 @@ if (!function_exists('exception_record')) {
             'file' => $exception->getFile(),
             'code' => $exception->getCode(),
             'line' => $exception->getLine(),
-            'trace' => $exception->getTraceAsString(),
             'params' => $request->all(),
             'url' => $request->url(),
             'method' => $request->method(),
@@ -95,20 +94,31 @@ if (!function_exists('aliyun_play_auth')) {
     /**
      * 获取阿里云视频的播放Auth
      *
-     * @param array $video
-     * @return SimpleXMLElement|string
+     * @param $video
+     * @param bool $isTry
+     * @return mixed|string
      */
-    function aliyun_play_auth($video)
+    function aliyun_play_auth($video, $isTry = false)
     {
+        // 试看参数封装
+        $playConfig = [];
+        ($isTry && $video['free_seconds'] > 0) && $playConfig['PreviewTime'] = $video['free_seconds'];
         try {
-            $client = aliyun_sdk_client();
-            $request = new \vod\Request\V20170321\GetVideoPlayAuthRequest();
-            $request->setAcceptFormat('JSON');
-            $request->setRegionId(config('meedu.upload.video.aliyun.region', ''));
-            $request->setVideoId($video['aliyun_video_id']);
-            $response = $client->getAcsResponse($request);
+            aliyun_sdk_client();
 
-            return $response->PlayAuth;
+            $query = ['VideoId' => $video['aliyun_video_id']];
+            $playConfig && $query['PlayConfig'] = json_encode($playConfig);
+
+            $result = \AlibabaCloud\Client\AlibabaCloud::rpc()
+                ->product('Vod')
+                ->version('2017-03-21')
+                ->action('GetVideoPlayAuth')
+                ->options([
+                    'query' => $query,
+                ])
+                ->request();
+
+            return $result['PlayAuth'];
         } catch (Exception $exception) {
             exception_record($exception);
 
@@ -120,26 +130,37 @@ if (!function_exists('aliyun_play_auth')) {
 if (!function_exists('aliyun_play_url')) {
     /**
      * 获取阿里云的视频播放地址
-     * @param $vid
+     * @param array $video
+     * @param bool $isTry
      * @return array
      */
-    function aliyun_play_url($vid)
+    function aliyun_play_url(array $video, $isTry = false)
     {
         try {
-            $client = aliyun_sdk_client();
-            $request = new \vod\Request\V20170321\GetPlayInfoRequest();
-            $request->setVideoId($vid);
-            $request->setAuthTimeout(3600 * 3);
-            $request->setAcceptFormat('JSON');
-            $response = $client->getAcsResponse($request);
-            $list = $response->PlayInfoList->PlayInfo;
+            aliyun_sdk_client();
+
+            $playConfig = [];
+            ($isTry && $video['free_seconds'] > 0) && $playConfig['PreviewTime'] = $video['free_seconds'];
+
+            $query = ['VideoId' => $video['aliyun_video_id']];
+            $playConfig && $query['PlayConfig'] = json_encode($playConfig);
+            $result = \AlibabaCloud\Client\AlibabaCloud::rpc()
+                ->product('Vod')
+                ->version('2017-03-21')
+                ->action('GetPlayInfo')
+                ->options([
+                    'query' => $query,
+                ])
+                ->request();
+
+            $playInfo = $result['PlayInfoList']['PlayInfo'];
             $rows = [];
-            foreach ($list as $item) {
+            foreach ($playInfo as $item) {
                 $rows[] = [
-                    'format' => $item->Format,
-                    'url' => $item->PlayURL,
-                    'duration' => $item->Duration,
-                    'name' => $item->Height,
+                    'format' => $item['Format'],
+                    'url' => $item['PlayURL'],
+                    'duration' => $item['Duration'],
+                    'name' => $item['Height'],
                 ];
             }
 
@@ -153,17 +174,18 @@ if (!function_exists('aliyun_play_url')) {
 }
 
 if (!function_exists('aliyun_sdk_client')) {
-    /**
-     * @return DefaultAcsClient
-     */
     function aliyun_sdk_client()
     {
-        $profile = \DefaultProfile::getProfile(
-            config('meedu.upload.video.aliyun.region', ''),
-            config('meedu.upload.video.aliyun.access_key_id', ''),
-            config('meedu.upload.video.aliyun.access_key_secret', '')
-        );
-        return new \DefaultAcsClient($profile);
+        /**
+         * @var \App\Services\Base\Services\ConfigService $configService
+         */
+        $configService = app()->make(\App\Services\Base\Interfaces\ConfigServiceInterface::class);
+        $aliyunVodConfig = $configService->getAliyunVodConfig();
+        \AlibabaCloud\Client\AlibabaCloud::accessKeyClient($aliyunVodConfig['access_key_id'], $aliyunVodConfig['access_key_secret'])
+            ->regionId($aliyunVodConfig['region'])
+            ->connectTimeout(3)
+            ->timeout(30)
+            ->asDefaultClient();
     }
 }
 
@@ -431,21 +453,22 @@ if (!function_exists('get_play_url')) {
     /**
      * 获取播放地址
      * @param array $video
+     * @param bool $isTry
      * @return \Illuminate\Support\Collection
      * @throws \Illuminate\Contracts\Container\BindingResolutionException
      */
-    function get_play_url(array $video)
+    function get_play_url(array $video, $isTry = false)
     {
         $playUrl = [];
         if ($video['aliyun_video_id']) {
-            $playUrl = aliyun_play_url($video['aliyun_video_id']);
+            $playUrl = aliyun_play_url($video, $isTry);
         } elseif ($video['tencent_video_id']) {
             $playUrl = get_tencent_play_url($video['tencent_video_id']);
             // 是否开启了播放key
             if ($key = config('meedu.system.player.tencent_play_key')) {
                 $tencentKey = app()->make(\App\Meedu\Player\TencentKey::class);
-                $playUrl = array_map(function ($item) use ($tencentKey) {
-                    $item['url'] = $tencentKey->url($item['url']);
+                $playUrl = array_map(function ($item) use ($tencentKey, $isTry, $video) {
+                    $item['url'] = $tencentKey->url($item['url'], $isTry, $video);
                     return $item;
                 }, $playUrl);
             }
@@ -497,5 +520,81 @@ if (!function_exists('get_array_ids')) {
             $ids[$id] = 0;
         }
         return array_keys($ids);
+    }
+}
+
+if (!function_exists('get_platform')) {
+    /**
+     * @return array|string|null
+     */
+    function get_platform()
+    {
+        // 如果默认读取不到，则将平台统一设置为 ‘APP’
+        $platform = strtoupper(request()->header('meedu-platform', \App\Constant\FrontendConstant::LOGIN_PLATFORM_APP));
+        $platforms = [
+            \App\Constant\FrontendConstant::LOGIN_PLATFORM_APP,
+            \App\Constant\FrontendConstant::LOGIN_PLATFORM_PC,
+            \App\Constant\FrontendConstant::LOGIN_PLATFORM_H5,
+            \App\Constant\FrontendConstant::LOGIN_PLATFORM_IOS,
+            \App\Constant\FrontendConstant::LOGIN_PLATFORM_ANDROID,
+            \App\Constant\FrontendConstant::LOGIN_PLATFORM_MINI,
+            \App\Constant\FrontendConstant::LOGIN_PLATFORM_OTHER,
+        ];
+        if (!in_array($platform, $platforms)) {
+            $platform = \App\Constant\FrontendConstant::LOGIN_PLATFORM_APP;
+        }
+        return $platform;
+    }
+}
+
+if (!function_exists('get_cache_key')) {
+    /**
+     * @param $key
+     * @param mixed ...$params
+     * @return string
+     */
+    function get_cache_key(string $key, ...$params): string
+    {
+        return sprintf($key, ...$params);
+    }
+}
+
+if (!function_exists('query_builder')) {
+    /**
+     * @param array $fields
+     * @param array $rewrite
+     * @return string
+     */
+    function query_builder(array $fields, array $rewrite = []): string
+    {
+        $request = request();
+        $data = [
+            'page' => $request->input('page', 1),
+        ];
+        foreach ($fields as $item) {
+            $data[$item] = $request->input($item, '');
+        }
+        $rewrite && $data = array_merge($data, $rewrite);
+        return http_build_query($data);
+    }
+}
+
+if (!function_exists('save_image')) {
+    function save_image($file): array
+    {
+        /**
+         * @var \Illuminate\Http\UploadedFile $file
+         */
+
+        /**
+         * @var $configService \App\Services\Base\Services\ConfigService
+         */
+        $configService = app()->make(\App\Services\Base\Interfaces\ConfigServiceInterface::class);
+        $disk = $configService->getImageStorageDisk();
+        $path = $file->store($configService->getImageStoragePath(), compact('disk'));
+        $url = url(\Illuminate\Support\Facades\Storage::disk($disk)->url($path));
+        $data = compact('path', 'url', 'disk');
+        $data['encryptData'] = $encryptData = encrypt(json_encode($data));
+        return $data;
     }
 }

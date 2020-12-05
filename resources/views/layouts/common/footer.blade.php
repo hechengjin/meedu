@@ -139,10 +139,6 @@
             <img src="/images/close.png" width="24" height="24" class="close-auth-box">
         </div>
         <div class="form-group">
-            <input id="nick_name" type="text" class="form-control" placeholder="昵称暂不支持修改，请慎重取名哦"
-                   name="nick_name" value="{{ old('nick_name') }}" required>
-        </div>
-        <div class="form-group">
             <input type="text" class="form-control" name="mobile" placeholder="请输入手机号">
         </div>
         <div class="form-group">
@@ -168,15 +164,12 @@
             <input id="password" type="password" class="form-control" placeholder="密码"
                    name="password" required>
         </div>
-        <div class="form-group">
-            <input id="password-confirm" type="password" class="form-control"
-                   placeholder="再输入一次" name="password_confirmation" required>
-        </div>
         <div class="form-group login-remember">
             <label class="user_protocol"><input type="checkbox"
                                                 name="agree_protocol" {{ old('remember') ? 'checked' : '' }}>
                 同意
-                <a href="{{route('user.protocol')}}" target="_blank">《用户协议》</a></label>
+                <a href="{{route('user.protocol')}}" target="_blank">《用户协议》</a> 和 <a
+                        href="{{route('user.private_protocol')}}" target="_blank">《隐私政策》</a></label>
 
             <span class="float-right show-login-box" onclick="showAuthBox('login-box')">立即登录</span>
         </div>

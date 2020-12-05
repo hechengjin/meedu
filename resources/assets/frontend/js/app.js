@@ -1,22 +1,4 @@
-/**
- * First we will load all of this project's JavaScript dependencies which
- * includes Vue and other libraries. It is a great starting point when
- * building robust, powerful web applications using Vue and Laravel.
- */
-
 require('./bootstrap');
-
-// window.Vue = require('vue');
-
-/**
- * Next, we will create a fresh Vue application instance and attach it to
- * the page. Then, you may begin adding components to this application
- * or customize the JavaScript scaffolding to fit your unique needs.
- */
-
-// const app = new Vue({
-//     el: '#app'
-// });
 
 window.showAuthBox = function ($box) {
     $('#auth-box-content').html($('#' + $box).html());
@@ -63,11 +45,11 @@ $(function () {
             }
         }, 'json');
     }).on('click', '.captcha', function () {
-        let src = $(this).attr('src');
+        let src = $(this).attr('src'), now = Date.now();
         if (src.indexOf('?') !== -1) {
-            src = src + "&1";
+            src = src.split('?')[0] + '?t=' + now;
         } else {
-            src = src + "?" + Date.now()
+            src = src + "?t=" + now;
         }
         $(this).attr('src', src);
     }).on('click', '.send-sms-captcha', function () {
@@ -169,26 +151,22 @@ $(function () {
         }, 'json');
     }).on('click', '.register-button', function () {
         let mobile = $('input[name="mobile"]').val();
-        let nick_name = $('input[name="nick_name"]').val();
         let password = $('input[name="password"]').val();
-        let passwordConfirm = $('input[name="password_confirmation"]').val();
         let smsCaptcha = $('input[name="sms_captcha"]').val();
         let protocol = $('input[name="agree_protocol"]:checked').val();
-        if (mobile === '' || nick_name === '' || password === '' || passwordConfirm === '') {
-            $('.auth-box-errors').text('请输入昵称，手机号，密码');
+        if (mobile === '' || password === '') {
+            $('.auth-box-errors').text('请输入手机号，密码');
             return false;
         }
         if (typeof protocol === "undefined") {
-            flashWarning("请同意用户协议");
+            flashWarning("请同意协议");
             return;
         }
         $(this).disabled = true;
         let token = $('meta[name="csrf-token"]').attr('content');
         let data = {
-            nick_name: nick_name,
             mobile: mobile,
             password: password,
-            password_confirmation: passwordConfirm,
             _token: token,
             sms_captcha: smsCaptcha,
             sms_captcha_key: 'register'
@@ -504,5 +482,14 @@ $(function () {
         $('.select-payment-model').show();
     }).on('click', '.close-select-payment-model', function () {
         $('.select-payment-model').hide();
+    }).on('click', '.videos-count', function () {
+        let dom = $(this).attr('data-dom');
+        $('.' + dom).toggle();
+        let iconDom = $(this).find('i');
+        if ($(iconDom).hasClass('fa-angle-down')) {
+            $(iconDom).removeClass('fa-angle-down').addClass('fa-angle-up');
+        } else {
+            $(iconDom).removeClass('fa-angle-up').addClass('fa-angle-down');
+        }
     });
 });

@@ -11,38 +11,22 @@
 
 namespace App\Http\Controllers\Api\V2;
 
-use Illuminate\Support\Str;
-use App\Constant\ApiV2Constant;
-use App\Exceptions\ApiV2Exception;
-use App\Http\Requests\ApiV2\RegisterRequest;
 use App\Services\Member\Services\UserService;
+use App\Http\Requests\ApiV2\RegisterSmsRequest;
 use App\Services\Member\Interfaces\UserServiceInterface;
 
-/**
- * Class RegisterController
- * @package App\Http\Controllers\Api\V2
- */
 class RegisterController extends BaseController
 {
 
     /**
-     * @var UserService
-     */
-    protected $userService;
-
-    public function __construct(UserServiceInterface $userService)
-    {
-        $this->userService = $userService;
-    }
-
-    /**
      * @OA\Post(
-     *     path="/register/mobile",
-     *     summary="手机号注册",
+     *     path="/register/sms",
+     *     summary="短信注册",
      *     tags={"Auth"},
      *     @OA\RequestBody(description="",@OA\JsonContent(
      *         @OA\Property(property="mobile",description="手机号",type="string"),
-     *         @OA\Property(property="mobile_code",description="手机验证码",type="string"),
+     *         @OA\Property(property="mobile_code",description="短信验证码",type="string"),
+     *         @OA\Property(property="password",description="密码",type="string"),
      *     )),
      *     @OA\Response(
      *         description="",response=200,
@@ -53,19 +37,23 @@ class RegisterController extends BaseController
      *         )
      *     )
      * )
-     * @param RegisterRequest $request
-     * @return \Illuminate\Http\JsonResponse
-     * @throws ApiV2Exception
      */
-    public function mobileRegister(RegisterRequest $request)
+    public function smsHandler(RegisterSmsRequest $request, UserServiceInterface $userService)
     {
+        /**
+         * @var UserService $userService
+         */
+
         $this->mobileCodeCheck();
-        ['mobile' => $mobile] = $request->filldata();
-        $user = $this->userService->findMobile($mobile);
-        if ($user) {
-            return $this->error(__(ApiV2Constant::MOBILE_HAS_EXISTS));
+
+        ['mobile' => $mobile, 'password' => $password] = $request->filldata();
+
+        if ($userService->findMobile($mobile)) {
+            return $this->error(__('mobile.unique'));
         }
-        $this->userService->createWithMobile($mobile, '', '');
+
+        $userService->createWithMobile($mobile, $password, '');
+
         return $this->success();
     }
 }

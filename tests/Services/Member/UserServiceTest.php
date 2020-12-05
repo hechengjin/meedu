@@ -1,23 +1,33 @@
 <?php
 
+/*
+ * This file is part of the Qsnh/meedu.
+ *
+ * (c) XiaoTeng <616896861@qq.com>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ */
 
 namespace Tests\Services\Member;
 
-use App\Services\Course\Models\Course;
-use App\Services\Course\Models\Video;
-use App\Services\Member\Interfaces\UserServiceInterface;
+use Carbon\Carbon;
+use Tests\TestCase;
+use App\Exceptions\ServiceException;
 use App\Services\Member\Models\Role;
 use App\Services\Member\Models\User;
-use App\Services\Member\Models\UserCourse;
-use App\Services\Member\Models\UserVideo;
-use App\Services\Member\Services\NotificationService;
-use App\Services\Member\Services\UserService;
-use App\Services\Order\Models\PromoCode;
-use Carbon\Carbon;
-use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Tests\TestCase;
+use App\Services\Course\Models\Video;
+use App\Services\Course\Models\Course;
+use App\Services\Order\Models\PromoCode;
+use App\Services\Member\Models\UserVideo;
+use App\Services\Member\Models\UserCourse;
+use Illuminate\Foundation\Testing\WithFaker;
+use App\Services\Member\Models\UserWatchStat;
+use App\Services\Member\Services\UserService;
+use App\Services\Member\Services\NotificationService;
+use App\Services\Member\Interfaces\UserServiceInterface;
 
 class UserServiceTest extends TestCase
 {
@@ -28,7 +38,7 @@ class UserServiceTest extends TestCase
      */
     protected $service;
 
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         $this->setUpFaker();
@@ -51,11 +61,10 @@ class UserServiceTest extends TestCase
         $this->assertEquals($user->id, $u['id']);
     }
 
-    /**
-     * @expectedException \App\Exceptions\ServiceException
-     */
     public function test_resetPassword()
     {
+        $this->expectException(ServiceException::class);
+
         $user = factory(User::class)->create([
             'mobile' => '13090909090',
             'password' => Hash::make('123456'),
@@ -99,11 +108,10 @@ class UserServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /**
-     * @expectedException \App\Exceptions\ServiceException
-     */
     public function test_bindMobile()
     {
+        $this->expectException(ServiceException::class);
+
         $user = factory(User::class)->create([
             'mobile' => '13090909090',
             'password' => Hash::make('123456'),
@@ -112,11 +120,10 @@ class UserServiceTest extends TestCase
         $this->service->bindMobile('13909098080');
     }
 
-    /**
-     * @expectedException \App\Exceptions\ServiceException
-     */
     public function test_bindMobile_with_exists()
     {
+        $this->expectException(ServiceException::class);
+
         factory(User::class)->create([
             'mobile' => '13909098080',
             'password' => Hash::make('123456'),
@@ -145,11 +152,10 @@ class UserServiceTest extends TestCase
         $this->assertNotEmpty($newMobile);
     }
 
-    /**
-     * @expectedException \App\Exceptions\ServiceException
-     */
     public function test_bindMobile_with_exist_mobile()
     {
+        $this->expectException(ServiceException::class);
+
         $user = factory(User::class)->create([
             'mobile' => '13090909090',
             'password' => Hash::make('123456'),
@@ -313,11 +319,11 @@ class UserServiceTest extends TestCase
         config(['meedu.system.cache.status' => 1]);
         $user = factory(User::class)->create();
         factory(UserCourse::class, 10)->create(['user_id' => $user]);
-        Auth::login($user);
-        $this->assertEquals(10, $this->service->getCurrentUserCourseCount());
+
+        $this->assertEquals(10, $this->service->getUserCourseCount($user['id']));
 
         factory(UserCourse::class, 3)->create(['user_id' => $user]);
-        $this->assertEquals(10, $this->service->getCurrentUserCourseCount());
+        $this->assertEquals(10, $this->service->getUserCourseCount($user['id']));
     }
 
     public function test_getCurrentUserVideoCount()
@@ -325,11 +331,11 @@ class UserServiceTest extends TestCase
         config(['meedu.system.cache.status' => 1]);
         $user = factory(User::class)->create();
         factory(UserVideo::class, 11)->create(['user_id' => $user]);
-        Auth::login($user);
-        $this->assertEquals(11, $this->service->getCurrentUserVideoCount());
+
+        $this->assertEquals(11, $this->service->getUserVideoCount($user['id']));
 
         factory(UserVideo::class, 5)->create(['user_id' => $user]);
-        $this->assertEquals(11, $this->service->getCurrentUserVideoCount());
+        $this->assertEquals(11, $this->service->getUserVideoCount($user['id']));
     }
 
     public function test_inviteBalanceInc()
@@ -360,13 +366,32 @@ class UserServiceTest extends TestCase
         $this->assertEquals('188999900011', $user->mobile);
     }
 
-    /**
-     * @expectedException App\Exceptions\ServiceException
-     */
     public function test_changeMobile_exists()
     {
+        $this->expectException(ServiceException::class);
+
         $user = factory(User::class)->create(['mobile' => '199000012341']);
         $user = factory(User::class)->create(['mobile' => '13788889999']);
         $this->service->changeMobile($user->id, '13788889999');
+    }
+
+    public function test_watchStatSave()
+    {
+        $userId = 1;
+
+        $this->service->watchStatSave($userId, 10);
+
+        // 记录存在
+        $record = UserWatchStat::query()->where('user_id', $userId)->first();
+        $this->assertNotNull($record);
+        $this->assertEquals(date('Y'), $record['year']);
+        $this->assertEquals(date('m'), $record['month']);
+        $this->assertEquals(date('d'), $record['day']);
+        $this->assertEquals(10, $record['seconds']);
+
+
+        $this->service->watchStatSave($userId, 22);
+        $record->refresh();
+        $this->assertEquals(32, $record['seconds']);
     }
 }

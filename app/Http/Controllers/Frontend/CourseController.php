@@ -90,34 +90,31 @@ class CourseController extends FrontendController
     {
         $categoryId = (int)$request->input('category_id');
         $scene = $request->input('scene', '');
+
         $page = $request->input('page', 1);
         $pageSize = $this->configService->getCourseListPageSize();
+
         [
             'total' => $total,
             'list' => $list
         ] = $this->courseService->simplePage($page, $pageSize, $categoryId, $scene);
         $courses = $this->paginator($list, $total, $page, $pageSize);
+
+        // 分页参数注入
         $courses->appends([
             'category_id' => $categoryId,
             'scene' => $request->input('scene', ''),
         ]);
+
+        // SEO信息
         [
             'title' => $title,
             'keywords' => $keywords,
             'description' => $description,
         ] = $this->configService->getSeoCourseListPage();
-        $courseCategories = $this->courseCategoryService->all();
 
-        $queryParams = function ($param) {
-            $request = \request();
-            $params = [
-                'page' => $request->input('page'),
-                'category_id' => $request->input('category_id', 0),
-                'scene' => $request->input('scene', ''),
-            ];
-            $params = array_merge($params, $param);
-            return http_build_query($params);
-        };
+        // 课程分类
+        $courseCategories = $this->courseCategoryService->all();
 
         return v('frontend.course.index', compact(
             'courses',
@@ -126,8 +123,7 @@ class CourseController extends FrontendController
             'description',
             'courseCategories',
             'categoryId',
-            'scene',
-            'queryParams'
+            'scene'
         ));
     }
 
@@ -149,6 +145,9 @@ class CourseController extends FrontendController
         $keywords = $course['seo_keywords'];
         $description = $course['seo_description'];
 
+        // 课程附件
+        $attach = $this->courseService->getCourseAttach($course['id']);
+
         // 是否购买
         $isBuy = false;
         // 喜欢课程
@@ -157,18 +156,20 @@ class CourseController extends FrontendController
         $firstVideo = [];
         // 课程视频观看进度
         $videoWatchedProgress = [];
+        // 课程评论
+        $canComment = $this->businessState->courseCanComment($this->user(), $course);
 
         // 已登录用户的一些判断
         if (Auth::check()) {
             // 是否购买
-            $isBuy = $this->businessState->isBuyCourse(Auth::id(), $course['id']);
+            $isBuy = $this->businessState->isBuyCourse($this->id(), $course['id']);
             // 是否收藏当前课程
-            $isLikeCourse = $this->userService->likeCourseStatus(Auth::id(), $course['id']);
+            $isLikeCourse = $this->userService->likeCourseStatus($this->id(), $course['id']);
             // 课程视频观看进度
-            $userVideoWatchRecords = $this->userService->getUserVideoWatchRecords(Auth::id(), $course['id']);
+            $userVideoWatchRecords = $this->userService->getUserVideoWatchRecords($this->id(), $course['id']);
             $videoWatchedProgress = array_column($userVideoWatchRecords, null, 'video_id');
             // 最近一条观看记录
-            $latestWatchRecord = $this->userService->getLatestRecord(Auth::id(), $course['id']);
+            $latestWatchRecord = $this->userService->getLatestRecord($this->id(), $course['id']);
             $latestWatchRecord && $firstVideo = $this->videoService->find($latestWatchRecord['video_id']);
         }
 
@@ -195,7 +196,9 @@ class CourseController extends FrontendController
             'isLikeCourse',
             'firstVideo',
             'scene',
-            'videoWatchedProgress'
+            'videoWatchedProgress',
+            'attach',
+            'canComment'
         ));
     }
 
@@ -241,5 +244,15 @@ class CourseController extends FrontendController
         $payment = $request->input('payment_sign');
 
         return redirect(route('order.pay', ['scene' => $paymentScene, 'payment' => $payment, 'order_id' => $order['order_id']]));
+    }
+
+    public function attachDownload($id)
+    {
+        $courseAttach = $this->courseService->getAttach($id);
+        if (!$this->businessState->isBuyCourse(Auth::id(), $courseAttach['course_id'])) {
+            abort(403, __('please buy course'));
+        }
+        $this->courseService->courseAttachDownloadTimesInc($courseAttach['id']);
+        return response()->download(storage_path('app/attach/' . $courseAttach['path']));
     }
 }

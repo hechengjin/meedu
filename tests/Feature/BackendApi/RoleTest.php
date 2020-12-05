@@ -1,16 +1,23 @@
 <?php
 
+/*
+ * This file is part of the Qsnh/meedu.
+ *
+ * (c) XiaoTeng <616896861@qq.com>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ */
 
 namespace Tests\Feature\BackendApi;
 
 use App\Models\Administrator;
 use App\Models\AdministratorRole;
-use App\Services\Member\Models\Role;
 use Illuminate\Support\Facades\DB;
+use App\Services\Member\Models\Role;
 
 class RoleTest extends Base
 {
-
     public const MODEL = Role::class;
 
     public const MODEL_NAME = 'role';
@@ -27,7 +34,7 @@ class RoleTest extends Base
     protected $admin;
     protected $role;
 
-    public function setUp()
+    public function setUp():void
     {
         parent::setUp();
         $this->admin = factory(Administrator::class)->create();
@@ -38,7 +45,7 @@ class RoleTest extends Base
         ]);
     }
 
-    public function tearDown()
+    public function tearDown():void
     {
         $this->admin->delete();
         parent::tearDown();
@@ -83,5 +90,4 @@ class RoleTest extends Base
         $model = self::MODEL;
         $this->assertEmpty($model::find($item->id));
     }
-
 }

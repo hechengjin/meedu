@@ -15,21 +15,16 @@ class ApiV2Constant
 {
     public const YES = 1;
 
-    public const PARAMS_ERROR = 'params error';
     public const PLEASE_INPUT_IMAGE_CAPTCHA = 'image_captcha.required';
     public const IMAGE_CAPTCHA_ERROR = 'image_captcha_error';
 
     public const USER_MOBILE_NOT_EXISTS = 'mobile not exists';
-    public const MOBILE_HAS_EXISTS = 'mobile has exists';
     public const MOBILE_OR_PASSWORD_ERROR = 'mobile not exists or password error';
     public const MOBILE_CODE_ERROR = 'mobile code error';
 
     public const MEMBER_HAS_LOCKED = 'current user was locked,please contact administrator';
 
     public const VIDEO_NO_AUTH = 'please buy this video before see';
-
-    public const SMS_CODE_EXPIRE = 60;
-    public const MOBILE_CODE_CACHE_KEY = 'm:%s';
 
     public const ERROR_CODE = 1;
     public const ERROR_NO_AUTH_CODE = 401;
@@ -100,6 +95,7 @@ class ApiV2Constant
      *         @OA\Property(property="avatar",type="string",description="头像"),
      *         @OA\Property(property="nick_name",type="string",description="昵称"),
      *         @OA\Property(property="mobile",type="string",description="手机号"),
+     *         @OA\Property(property="credit1",type="int",description="积分"),
      *         @OA\Property(property="role_id",type="integer",description="会员套餐id"),
      *         @OA\Property(property="role_expired_at",type="string",description="会员套餐到期时间"),
      *         @OA\Property(property="role",type="object",ref="#/components/schemas/Role"),
@@ -111,7 +107,7 @@ class ApiV2Constant
      */
     public const MODEL_MEMBER_FIELD = [
         'id', 'avatar', 'nick_name', 'mobile', 'is_lock', 'is_active', 'role_id', 'role_expired_at',
-        'invite_balance', 'role', 'is_password_set', 'is_set_nickname',
+        'invite_balance', 'role', 'is_password_set', 'is_set_nickname', 'credit1',
     ];
     /**
      * @OpenApi\Annotations\Schemas(
@@ -252,7 +248,7 @@ class ApiV2Constant
      * )
      */
     public const MODEL_PROMO_CODE_FIELD = [
-        'id', 'code', 'expired_at', 'invited_user_reward',
+        'id', 'code', 'expired_at', 'invited_user_reward', 'invite_user_reward',
     ];
 
     /**
@@ -268,7 +264,7 @@ class ApiV2Constant
      * )
      */
     public const MODEL_SLIDER_FIELD = [
-        'thumb', 'url', 'sort',
+        'thumb', 'url', 'sort', 'platform',
     ];
 
     /**
@@ -287,5 +283,65 @@ class ApiV2Constant
      */
     public const MODEL_NOTIFICATON_FIELD = [
         'id', 'notifiable_id', 'data', 'read_at', 'created_at',
+    ];
+
+    /**
+     * @OpenApi\Annotations\Schemas(
+     *     @OA\Schema(
+     *         schema="UserCredit1Record",
+     *         type="object",
+     *         title="积分明细",
+     *         @OA\Property(property="sum",type="integer",description="变动"),
+     *         @OA\Property(property="remark",type="string",description="说明"),
+     *         @OA\Property(property="created_at",type="integer",description="时间"),
+     *     ),
+     * )
+     */
+    public const MODEL_CREDIT1_RECORD_FIELD = [
+        'sum', 'remark', 'created_at',
+    ];
+
+    /**
+     * @OpenApi\Annotations\Schemas(
+     *     @OA\Schema(
+     *         schema="CourseAttach",
+     *         type="object",
+     *         title="课程附件",
+     *         @OA\Property(property="id",type="integer",description="id"),
+     *         @OA\Property(property="name",type="string",description="附件名"),
+     *         @OA\Property(property="size",type="integer",description="附件大小，单位：字节"),
+     *         @OA\Property(property="extension",type="string",description="附件扩展"),
+     *     ),
+     * )
+     */
+    public const MODEL_COURSE_ATTACH_FIELD = [
+        'id', 'name', 'size', 'extension',
+    ];
+
+    /**
+     * @OpenApi\Annotations\Schemas(
+     *     @OA\Schema(
+     *         schema="MemberProfile",
+     *         type="object",
+     *         title="用户资料",
+     *         @OA\Property(property="real_name",type="string",description="真实姓名"),
+     *         @OA\Property(property="age",type="integer",description="年龄"),
+     *         @OA\Property(property="gender",type="string",description="性别"),
+     *         @OA\Property(property="birthday",type="string",description="生日"),
+     *         @OA\Property(property="profession",type="string",description="职业"),
+     *         @OA\Property(property="address",type="string",description="住址"),
+     *         @OA\Property(property="graduated_school",type="string",description="毕业院校"),
+     *         @OA\Property(property="diploma",type="string",description="毕业证书照"),
+     *         @OA\Property(property="id_number",type="string",description="身份证号"),
+     *         @OA\Property(property="id_frontend_thumb",type="string",description="身份证正面照"),
+     *         @OA\Property(property="id_backend_thumb",type="string",description="身份证反面照"),
+     *         @OA\Property(property="id_hand_thumb",type="string",description="手持身份证照"),
+     *     ),
+     * )
+     */
+    public const MODEL_MEMBER_PROFILE_FIELD = [
+        'real_name', 'gender', 'age', 'birthday', 'profession', 'address',
+        'graduated_school', 'diploma',
+        'id_number', 'id_frontend_thumb', 'id_backend_thumb', 'id_hand_thumb',
     ];
 }

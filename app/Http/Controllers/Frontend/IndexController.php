@@ -12,6 +12,7 @@
 namespace App\Http\Controllers\Frontend;
 
 use App\Meedu\Cache\Inc\Inc;
+use App\Constant\FrontendConstant;
 use App\Meedu\Cache\Inc\AdFromIncItem;
 use App\Services\Other\Services\LinkService;
 use App\Services\Base\Services\ConfigService;
@@ -97,7 +98,7 @@ class IndexController extends FrontendController
         }
 
         // 幻灯片
-        $sliders = $this->sliderService->all();
+        $sliders = $this->sliderService->all(is_h5() ? FrontendConstant::SLIDER_PLATFORM_H5 : FrontendConstant::SLIDER_PLATFORM_PC);
 
         // 课程
         [
@@ -127,6 +128,12 @@ class IndexController extends FrontendController
     {
         $protocol = $this->configService->getMemberProtocol();
         return v('frontend.index.user_protocol', compact('protocol'));
+    }
+
+    public function userPrivateProtocol()
+    {
+        $protocol = $this->configService->getMemberPrivateProtocol();
+        return v('frontend.index.user_private_protocol', compact('protocol'));
     }
 
     public function aboutus()

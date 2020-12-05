@@ -91,6 +91,7 @@ class CourseController extends BaseController
      *     @OA\Parameter(in="query",name="page",description="页码",required=false,@OA\Schema(type="integer")),
      *     @OA\Parameter(in="query",name="page_size",description="每页数量",required=false,@OA\Schema(type="integer")),
      *     @OA\Parameter(in="query",name="category_id",description="分类id",required=false,@OA\Schema(type="integer")),
+     *     @OA\Parameter(in="query",name="scene",description="场景[空:全部课程,recom:推荐,sub:订阅最多,free:免费课程]",required=false,@OA\Schema(type="string")),
      *     @OA\Response(
      *         description="",response=200,
      *         @OA\JsonContent(
@@ -109,12 +110,13 @@ class CourseController extends BaseController
     public function paginate(Request $request)
     {
         $categoryId = intval($request->input('category_id'));
+        $scene = $request->input('scene', '');
         $page = $request->input('page', 1);
         $pageSize = $request->input('page_size', $this->configService->getCourseListPageSize());
         [
             'total' => $total,
             'list' => $list
-        ] = $this->courseService->simplePage($page, $pageSize, $categoryId);
+        ] = $this->courseService->simplePage($page, $pageSize, $categoryId, $scene);
         $list = arr2_clear($list, ApiV2Constant::MODEL_COURSE_FIELD);
         $courses = $this->paginator($list, $total, $page, $pageSize);
 
@@ -165,6 +167,10 @@ class CourseController extends BaseController
         // 课程视频观看进度
         $videoWatchedProgress = [];
 
+        // 课程附件
+        $attach = $this->courseService->getCourseAttach($course['id']);
+        $attach = arr2_clear($attach, ApiV2Constant::MODEL_COURSE_ATTACH_FIELD);
+
         if ($this->check()) {
             $isBuy = $this->businessState->isBuyCourse($this->id(), $course['id']);
             $isCollect = $this->userService->likeCourseStatus($this->id(), $course['id']);
@@ -173,7 +179,7 @@ class CourseController extends BaseController
             $videoWatchedProgress = array_column($userVideoWatchRecords, null, 'video_id');
         }
 
-        return $this->data(compact('course', 'chapters', 'videos', 'isBuy', 'isCollect', 'videoWatchedProgress'));
+        return $this->data(compact('course', 'chapters', 'videos', 'isBuy', 'isCollect', 'videoWatchedProgress', 'attach'));
     }
 
     /**
@@ -200,6 +206,10 @@ class CourseController extends BaseController
      */
     public function createComment(CommentRequest $request, $id)
     {
+        $course = $this->courseService->find($id);
+        if ($this->businessState->courseCanComment($this->user(), $course) == false) {
+            return $this->error(__('course cant comment'));
+        }
         ['content' => $content] = $request->filldata();
         $this->courseCommentService->create($id, $content);
         return $this->success();
@@ -265,5 +275,32 @@ class CourseController extends BaseController
         $course = $this->courseService->find($id);
         $status = $this->userService->likeACourse($this->id(), $course['id']);
         return $this->data($status);
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/course/attach/{id}/download",
+     *     @OA\Parameter(in="path",name="id",description="课程附件id",required=true,@OA\Schema(type="integer")),
+     *     summary="课程附件下载",
+     *     tags={"课程"},
+     *     @OA\Response(
+     *         description="",response=200,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="code",type="integer",description="状态码"),
+     *             @OA\Property(property="message",type="string",description="消息"),
+     *             @OA\Property(property="data",type="object",description=""),
+     *         )
+     *     )
+     * )
+     * @param $id
+     */
+    public function attachDownload($id)
+    {
+        $courseAttach = $this->courseService->getAttach($id);
+        if (!$this->businessState->isBuyCourse($this->id(), $courseAttach['course_id'])) {
+            return $this->error(__('please buy course'));
+        }
+        $this->courseService->courseAttachDownloadTimesInc($courseAttach['id']);
+        return response()->download(storage_path('app/attach/' . $courseAttach['path']));
     }
 }

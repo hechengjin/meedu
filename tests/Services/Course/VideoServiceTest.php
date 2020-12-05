@@ -1,15 +1,24 @@
 <?php
 
+/*
+ * This file is part of the Qsnh/meedu.
+ *
+ * (c) XiaoTeng <616896861@qq.com>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ */
 
 namespace Tests\Services\Course;
 
-use App\Services\Course\Interfaces\VideoServiceInterface;
-use App\Services\Course\Models\Course;
-use App\Services\Course\Models\CourseChapter;
-use App\Services\Course\Models\Video;
-use App\Services\Course\Services\VideoService;
 use Carbon\Carbon;
 use Tests\TestCase;
+use App\Services\Course\Models\Video;
+use App\Services\Course\Models\Course;
+use App\Services\Course\Models\CourseChapter;
+use App\Services\Course\Services\VideoService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use App\Services\Course\Interfaces\VideoServiceInterface;
 
 class VideoServiceTest extends TestCase
 {
@@ -19,7 +28,7 @@ class VideoServiceTest extends TestCase
      */
     protected $service;
 
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         $this->service = $this->app->make(VideoServiceInterface::class);
@@ -148,11 +157,10 @@ class VideoServiceTest extends TestCase
         $this->assertEquals($video->title, $v['title']);
     }
 
-    /**
-     * @expectedException Illuminate\Database\Eloquent\ModelNotFoundException
-     */
     public function test_find_with_no_published()
     {
+        $this->expectException(ModelNotFoundException::class);
+
         $video = factory(Video::class)->create([
             'is_show' => Video::IS_SHOW_YES,
             'published_at' => Carbon::now()->addDays(1),
@@ -160,11 +168,10 @@ class VideoServiceTest extends TestCase
         $this->service->find($video->id);
     }
 
-    /**
-     * @expectedException Illuminate\Database\Eloquent\ModelNotFoundException
-     */
     public function test_find_with_no_show()
     {
+        $this->expectException(ModelNotFoundException::class);
+
         $video = factory(Video::class)->create([
             'is_show' => Video::IS_SHOW_NO,
             'published_at' => Carbon::now()->subDays(1),
@@ -215,26 +222,20 @@ class VideoServiceTest extends TestCase
         $this->assertTrue(isset($list[$video2->id]));
     }
 
-    public function test_viewNumInc()
+    public function test_viewNumIncrement()
     {
-        config(['meedu.system.cache.status' => 0]);
-        $video = factory(Video::class)->create(['view_num' => 1]);
-        $this->service->viewNumInc($video['id']);
-        $video->refresh();
-        $this->assertEquals(2, $video->view_num);
+        $video = factory(Video::class)->create([
+            'is_show' => Video::IS_SHOW_YES,
+            'published_at' => Carbon::now()->subDays(1),
+            'view_num' => 0,
+        ]);
 
-        config(['meedu.system.cache.status' => 1]);
-        $this->service->viewNumInc($video['id']);
+        $this->service->viewNumIncrement($video['id'], 13);
         $video->refresh();
-        $this->assertEquals(2, $video->view_num);
+        $this->assertEquals(13, $video['view_num']);
 
-        $this->service->viewNumInc($video['id']);
-        $this->service->viewNumInc($video['id']);
-        $this->service->viewNumInc($video['id']);
-        $this->service->viewNumInc($video['id']);
-        $this->service->viewNumInc($video['id']);
+        $this->service->viewNumIncrement($video['id'], 20);
         $video->refresh();
-        $this->assertEquals(8, $video->view_num);
+        $this->assertEquals(33, $video['view_num']);
     }
-
 }

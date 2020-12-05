@@ -1,9 +1,17 @@
 <?php
 
+/*
+ * This file is part of the Qsnh/meedu.
+ *
+ * (c) XiaoTeng <616896861@qq.com>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ */
+
 Route::post('/login', 'LoginController@login');
 
 Route::group(['middleware' => ['auth:administrator', 'backend.permission']], function () {
-
     Route::get('/user', 'LoginController@user');
     Route::get('/menus', 'LoginController@menus');
 
@@ -63,6 +71,7 @@ Route::group(['middleware' => ['auth:administrator', 'backend.permission']], fun
     // Nav
     Route::group(['prefix' => 'nav'], function () {
         Route::get('/', 'NavController@index');
+        Route::get('/create', 'NavController@create');
         Route::post('/', 'NavController@store');
         Route::get('/{id}', 'NavController@edit');
         Route::put('/{id}', 'NavController@update');
@@ -129,7 +138,17 @@ Route::group(['middleware' => ['auth:administrator', 'backend.permission']], fun
         Route::get('/{id}', 'CourseController@edit');
         Route::put('/{id}', 'CourseController@update');
         Route::delete('/{id}', 'CourseController@destroy');
-        Route::get('/{id}/subscribe/users', 'CourseController@subscribeUsers');
+        Route::get('/{id}/watch/records', 'CourseController@watchRecords');
+        Route::get('/{id}/subscribes', 'CourseController@subscribes');
+        Route::get('/{id}/subscribe/delete', 'CourseController@deleteSubscribe');
+        Route::post('/{id}/subscribe/create', 'CourseController@createSubscribe');
+    });
+
+    // 课程
+    Route::group(['prefix' => 'course_attach'], function () {
+        Route::get('/', 'CourseAttachController@index');
+        Route::post('/', 'CourseAttachController@store');
+        Route::delete('/{id}', 'CourseAttachController@destroy');
     });
 
     // 视频
@@ -140,6 +159,15 @@ Route::group(['middleware' => ['auth:administrator', 'backend.permission']], fun
         Route::get('/{id}', 'CourseVideoController@edit');
         Route::put('/{id}', 'CourseVideoController@update');
         Route::delete('/{id}', 'CourseVideoController@destroy');
+        Route::post('/delete/multi', 'CourseVideoController@multiDestroy');
+        // 订阅关系
+        Route::get('/{id}/subscribes', 'CourseVideoController@subscribes');
+        Route::post('/{id}/subscribe/create', 'CourseVideoController@subscribeCreate');
+        Route::get('/{id}/subscribe/delete', 'CourseVideoController@subscribeDelete');
+        // 观看记录
+        Route::get('/{id}/watch/records', 'CourseVideoController@watchRecords');
+        // 批量导入
+        Route::post('/import', 'CourseVideoController@import');
     });
 
     // 会员
@@ -147,6 +175,12 @@ Route::group(['middleware' => ['auth:administrator', 'backend.permission']], fun
         Route::get('/', 'MemberController@index');
         Route::get('/create', 'MemberController@create');
         Route::get('/{id}', 'MemberController@edit');
+
+        // 标签
+        Route::put('/{id}/tags', 'MemberController@tagUpdate');
+        // 备注
+        Route::get('/{id}/remark', 'MemberController@remark');
+        Route::put('/{id}/remark', 'MemberController@updateRemark');
 
         // 用户详情
         Route::get('/{id}/detail', 'MemberController@detail');
@@ -157,11 +191,14 @@ Route::group(['middleware' => ['auth:administrator', 'backend.permission']], fun
         Route::get('/{id}/detail/userHistory', 'MemberController@userHistory');
         Route::get('/{id}/detail/userOrders', 'MemberController@userOrders');
         Route::get('/{id}/detail/userInvite', 'MemberController@userInvite');
+        Route::get('/{id}/detail/credit1Records', 'MemberController@credit1Records');
 
         Route::post('/', 'MemberController@store');
         Route::put('/{id}', 'MemberController@update');
         Route::get('/inviteBalance/withdrawOrders', 'MemberController@inviteBalanceWithdrawOrders');
         Route::post('/inviteBalance/withdrawOrders', 'MemberController@inviteBalanceWithdrawOrderHandle');
+
+        Route::post('/credit1/change', 'MemberController@credit1Change');
     });
 
     // 网站配置
@@ -173,11 +210,14 @@ Route::group(['middleware' => ['auth:administrator', 'backend.permission']], fun
     // 订单
     Route::group(['prefix' => 'order'], function () {
         Route::get('/', 'OrderController@index');
+        Route::get('/{id}', 'OrderController@detail');
         Route::get('/{id}/finish', 'OrderController@finishOrder');
     });
 
     // 图片上传
     Route::post('/upload/image/tinymce', 'UploadController@tinymceImageUpload');
+    // 远程图片下载
+    Route::post('/upload/image/download', 'UploadController@imageUpload');
 
     // 优惠码
     Route::group(['prefix' => 'promoCode'], function () {
@@ -186,6 +226,8 @@ Route::group(['middleware' => ['auth:administrator', 'backend.permission']], fun
         Route::get('/{id}', 'PromoCodeController@edit');
         Route::put('/{id}', 'PromoCodeController@update');
         Route::post('/delete/multi', 'PromoCodeController@destroy');
+        Route::post('/import', 'PromoCodeController@import');
+        Route::post('/generator', 'PromoCodeController@generator');
     });
 
     // 课程分类
@@ -235,5 +277,24 @@ Route::group(['middleware' => ['auth:administrator', 'backend.permission']], fun
         Route::get('/videoWatchDuration', 'StatisticController@videoWatchDuration');
         // 每日课程观看时长统计
         Route::get('/courseWatchDuration', 'StatisticController@courseWatchDuration');
+    });
+
+    // 微信公众号消息回复
+    Route::group(['prefix' => 'mpWechatMessageReply'], function () {
+        Route::get('/', 'MpWechatMessageReplyController@index');
+        Route::get('/create', 'MpWechatMessageReplyController@create');
+        Route::post('/', 'MpWechatMessageReplyController@store');
+        Route::get('/{id}', 'MpWechatMessageReplyController@edit');
+        Route::put('/{id}', 'MpWechatMessageReplyController@update');
+        Route::delete('/{id}', 'MpWechatMessageReplyController@destroy');
+    });
+
+    // 微信公众号
+    Route::group(['prefix' => 'mpWechat'], function () {
+        Route::group(['prefix' => 'menu'], function () {
+            Route::get('/', 'MpWechatController@menu');
+            Route::put('/', 'MpWechatController@menuUpdate');
+            Route::delete('/', 'MpWechatController@menuEmpty');
+        });
     });
 });

@@ -14,6 +14,7 @@ namespace App\Services\Course\Services;
 use Carbon\Carbon;
 use App\Constant\FrontendConstant;
 use App\Services\Course\Models\Course;
+use App\Services\Course\Models\CourseAttach;
 use App\Services\Base\Services\ConfigService;
 use App\Services\Course\Models\CourseChapter;
 use App\Services\Course\Models\CourseUserRecord;
@@ -62,13 +63,18 @@ class CourseService implements CourseServiceInterface
      */
     public function simplePage(int $page, int $pageSize, int $categoryId = 0, string $scene = ''): array
     {
-        $query = Course::with(['category'])
-            ->show()->published()
+        $query = Course::query()
+            ->with(['category'])
+            ->show()
+            ->published()
             ->withCount(['videos' => function ($query) {
                 $query->show()->published();
             }])
             ->when($categoryId, function ($query) use ($categoryId) {
                 $query->where('category_id', $categoryId);
+            })
+            ->when($scene === 'free', function ($query) {
+                $query->where('is_free', 1);
             });
         if (!$scene) {
             $query->orderByDesc('published_at');
@@ -243,5 +249,33 @@ class CourseService implements CourseServiceInterface
         $list = $query->get()->toArray();
 
         return compact('list', 'total');
+    }
+
+    /**
+     * 获取课程附件
+     * @param int $courseId
+     * @return array
+     */
+    public function getCourseAttach(int $courseId): array
+    {
+        return CourseAttach::query()->select(['name', 'id', 'extension', 'size', 'download_times'])->where('course_id', $courseId)->get()->toArray();
+    }
+
+    /**
+     * 课程附件下载次数自增
+     * @param int $id
+     */
+    public function courseAttachDownloadTimesInc(int $id): void
+    {
+        CourseAttach::query()->where('id', $id)->increment('download_times', 1);
+    }
+
+    /**
+     * @param int $id
+     * @return array
+     */
+    public function getAttach(int $id): array
+    {
+        return CourseAttach::query()->where('id', $id)->firstOrFail()->toArray();
     }
 }

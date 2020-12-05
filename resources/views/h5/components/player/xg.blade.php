@@ -14,39 +14,44 @@
         playsinline: false,
         airplay: true,
         useHls: true,
-        closeVideoTouch: true,
-        closeVideoClick: true,
-        @if($gConfig['system']['player']['enabled_bullet_secret'] === 1)
+        ignores: [
+            @if($video['ban_drag'] === 1)
+                'progress',
+            @endif
+        ],
+        @if((int)$gConfig['system']['player']['enabled_bullet_secret'] === 1)
         marquee: {
-        value: '{{$user['mobile']}}'
+            value: '{{$user['mobile']}}'
         },
         @endif
+        closeVideoTouch: true,
+        closeVideoClick: true,
     };
-            @if($playUrls->first()['format'] === 'm3u8')
+    @if($playUrls->first()['format'] === 'm3u8')
     const XGPlayer = new HlsJsPlayer(XGPlayerConfig);
-            @else
+    @else
     const XGPlayer = new Player(XGPlayerConfig);
     @endif
 
     @if($playUrls->count() > 1)
     XGPlayer.emit('resourceReady', @json($playUrls));
-            @endif
+    @endif
 
     var PREV_SECONDS = 0;
-    var recordHandle = function () {
+    var recordHandle = function (isEnd = false) {
         var s = parseInt(XGPlayer.currentTime);
         if (s > PREV_SECONDS) {
             PREV_SECONDS = s;
             $.post('{{route('ajax.video.watch.record', [$video['id']])}}', {
                 _token: '{{csrf_token()}}',
-                duration: s
+                duration: (isEnd ? s + 1 : s)
             }, function (res) {
             }, 'json');
         }
     };
     setInterval('recordHandle()', 10000);
     XGPlayer.on('ended', function () {
-        recordHandle();
+        recordHandle(true);
         $('#meedu-player').hide();
         $('.watched-over').show();
     });

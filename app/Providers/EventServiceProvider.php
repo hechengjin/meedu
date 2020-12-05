@@ -27,6 +27,7 @@ class EventServiceProvider extends ServiceProvider
             '\App\Listeners\PaymentSuccessEvent\OrderPaidStatusChangeListener',
             '\App\Listeners\PaymentSuccessEvent\PromoCodeListener',
             '\App\Listeners\PaymentSuccessEvent\InviteUserRewardListener',
+            '\App\Listeners\PaymentSuccessEvent\Credit1RewardListener',
         ],
         'App\Events\OrderCancelEvent' => [
             '\App\Listeners\OrderCancelEvent\PromoCodeResumeListener',
@@ -47,10 +48,11 @@ class EventServiceProvider extends ServiceProvider
         'App\Events\UserRegisterEvent' => [
             'App\Listeners\UserRegisterEvent\WelcomeMessageListener',
             'App\Listeners\UserRegisterEvent\RegisterIpRecordListener',
+            'App\Listeners\UserRegisterEvent\RegisterCredit1RewardListener',
+            'App\Listeners\UserRegisterEvent\RegisterSendVipListener',
         ],
         'App\Events\UserLoginEvent' => [
-            'App\Listeners\UserLoginEvent\SafeAlertListener',
-            'App\Listeners\UserLoginEvent\BindMobileListener',
+            'App\Listeners\UserLoginEvent\LoginRecordListener',
         ],
         'App\Events\UserInviteBalanceWithdrawCreatedEvent' => [
             'App\Listeners\UserInviteBalanceWithdrawCreatedEvent\NotifyListener',
@@ -61,10 +63,13 @@ class EventServiceProvider extends ServiceProvider
         ],
         'App\Events\UserVideoWatchedEvent' => [
             'App\Listeners\UserVideoWatchedEvent\UserVideoWatchedListener',
+            'App\Listeners\UserVideoWatchedEvent\UserVideoWatchedCredit1RewardListener',
         ],
         'App\Events\UserCourseWatchedEvent' => [
             'App\Listeners\UserCourseWatchedEvent\UserCourseWatchedListener',
+            'App\Listeners\UserCourseWatchedEvent\UserCourseWatchedCredit1RewardListener',
         ],
+        'App\Events\AppConfigSavedEvent' => [],
     ];
 
     /**

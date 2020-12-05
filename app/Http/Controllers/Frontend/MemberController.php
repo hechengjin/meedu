@@ -20,6 +20,7 @@ use App\Services\Member\Services\UserService;
 use App\Services\Order\Services\OrderService;
 use App\Services\Course\Services\VideoService;
 use App\Services\Course\Services\CourseService;
+use App\Services\Member\Services\CreditService;
 use App\Services\Order\Services\PromoCodeService;
 use App\Services\Member\Services\SocialiteService;
 use App\Http\Requests\Frontend\Member\MobileBindRequest;
@@ -30,6 +31,7 @@ use App\Services\Order\Interfaces\OrderServiceInterface;
 use App\Services\Course\Interfaces\VideoServiceInterface;
 use App\Http\Requests\Frontend\Member\AvatarChangeRequest;
 use App\Services\Course\Interfaces\CourseServiceInterface;
+use App\Services\Member\Interfaces\CreditServiceInterface;
 use App\Services\Member\Services\UserInviteBalanceService;
 use App\Services\Order\Interfaces\PromoCodeServiceInterface;
 use App\Services\Member\Interfaces\SocialiteServiceInterface;
@@ -108,8 +110,8 @@ class MemberController extends FrontendController
     {
         $title = __('page_title_member_index');
 
-        $courseCount = $this->userService->getCurrentUserCourseCount();
-        $videoCount = $this->userService->getCurrentUserVideoCount();
+        $courseCount = $this->userService->getUserCourseCount($this->id());
+        $videoCount = $this->userService->getUserVideoCount($this->id());
 
         $apps = $this->socialiteService->userSocialites(Auth::id());
         $apps = array_column($apps, null, 'app');
@@ -171,11 +173,7 @@ class MemberController extends FrontendController
     }
 
     /**
-     * 头像更换.
-     *
      * @param AvatarChangeRequest $request
-     * @param MemberRepository $repository
-     *
      * @return \Illuminate\Http\RedirectResponse
      */
     public function avatarChangeHandler(AvatarChangeRequest $request)
@@ -415,9 +413,6 @@ class MemberController extends FrontendController
         ));
     }
 
-    /**
-     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
-     */
     public function generatePromoCode()
     {
         if (!$this->businessState->canGenerateInviteCode($this->user())) {
@@ -429,11 +424,6 @@ class MemberController extends FrontendController
         return redirect(route('member.promo_code'));
     }
 
-    /**
-     * @param InviteBalanceWithdrawRequest $request
-     * @return \Illuminate\Http\RedirectResponse
-     * @throws \App\Exceptions\ServiceException
-     */
     public function createInviteBalanceWithdrawOrder(InviteBalanceWithdrawRequest $request)
     {
         $total = $request->post('total');
@@ -445,5 +435,29 @@ class MemberController extends FrontendController
         $this->userInviteBalanceService->createCurrentUserWithdraw($data['total'], $data['channel']);
         flash(__('success'), 'success');
         return back();
+    }
+
+    public function credit1Records(Request $request, CreditServiceInterface $creditService)
+    {
+        /**
+         * @var CreditService $creditService
+         */
+        $page = $request->input('page', 1);
+        $pageSize = 10;
+        $records = $creditService->getCredit1RecordsPaginate(Auth::id(), $page, $pageSize);
+        $total = $creditService->getCredit1RecordsCount(Auth::id());
+        $records = $this->paginator($records, $total, $page, $pageSize);
+
+        $title = __('title.member.credit1_records');
+        return v('frontend.member.credit1_records', compact('title', 'records'));
+    }
+
+    public function showProfilePage()
+    {
+        $profile = $this->userService->getProfile($this->id());
+
+        $title = __('member.profile.edit');
+
+        return v('frontend.member.profile', compact('profile', 'title'));
     }
 }

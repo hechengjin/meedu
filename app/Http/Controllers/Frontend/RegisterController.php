@@ -35,7 +35,9 @@ class RegisterController extends BaseController
      */
     public function showRegisterPage()
     {
-        return v('frontend.auth.register');
+        $title = __('title.register');
+
+        return v('frontend.auth.register', compact('title'));
     }
 
     /**
@@ -49,8 +51,7 @@ class RegisterController extends BaseController
             'password' => $password,
             'nick_name' => $nickname,
         ] = $request->filldata();
-        $user = $this->userService->findNickname($nickname);
-        if ($user) {
+        if ($nickname && $this->userService->findNickname($nickname)) {
             flash(__('nick_name.unique'));
             return back();
         }

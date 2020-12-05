@@ -1,21 +1,27 @@
 <?php
 
+/*
+ * This file is part of the Qsnh/meedu.
+ *
+ * (c) XiaoTeng <616896861@qq.com>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ */
 
 namespace Tests\Commands;
 
-use App\Services\Member\Models\User;
-use App\Services\Order\Models\Order;
 use Illuminate\Support\Str;
 use Tests\OriginalTestCase;
+use App\Services\Member\Models\User;
+use App\Services\Order\Models\Order;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class OrderHandlerCommandTest extends OriginalTestCase
 {
-
-    /**
-     * @expectedException \Illuminate\Database\Eloquent\ModelNotFoundException
-     */
     public function test_order_handler()
     {
+        $this->expectException(ModelNotFoundException::class);
         $this->artisan('order:success', ['order_id' => Str::random()]);
     }
 
@@ -52,5 +58,4 @@ class OrderHandlerCommandTest extends OriginalTestCase
         $this->artisan('order:success', ['order_id' => $order->order_id])
             ->expectsOutput('order has paid.');
     }
-
 }

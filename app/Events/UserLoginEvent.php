@@ -11,13 +11,10 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 
 class UserLoginEvent
 {
@@ -25,13 +22,21 @@ class UserLoginEvent
 
     public $userId;
 
+    public $platform;
+
+    public $at;
+
     /**
      * UserLoginEvent constructor.
      * @param int $userId
+     * @param string $platform
+     * @param string $at
      */
-    public function __construct(int $userId)
+    public function __construct(int $userId, string $platform = '', $at = '')
     {
         $this->userId = $userId;
+        $this->platform = $platform;
+        $this->at = $at;
     }
 
     /**

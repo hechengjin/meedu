@@ -1,17 +1,23 @@
 <?php
 
+/*
+ * This file is part of the Qsnh/meedu.
+ *
+ * (c) XiaoTeng <616896861@qq.com>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ */
 
 namespace Tests\Feature\BackendApi;
 
 use App\Models\Administrator;
 use App\Models\AdministratorRole;
-use App\Services\Course\Models\CourseCategory;
-use App\Services\Other\Models\Nav;
 use Illuminate\Support\Facades\DB;
+use App\Services\Course\Models\CourseCategory;
 
 class CourseCategoryTest extends Base
 {
-
     public const MODEL = CourseCategory::class;
 
     public const MODEL_NAME = 'courseCategory';
@@ -24,7 +30,7 @@ class CourseCategoryTest extends Base
     protected $admin;
     protected $role;
 
-    public function setUp()
+    public function setUp():void
     {
         parent::setUp();
         $this->admin = factory(Administrator::class)->create();
@@ -35,7 +41,7 @@ class CourseCategoryTest extends Base
         ]);
     }
 
-    public function tearDown()
+    public function tearDown():void
     {
         $this->admin->delete();
         parent::tearDown();
@@ -80,5 +86,4 @@ class CourseCategoryTest extends Base
         $model = self::MODEL;
         $this->assertEmpty($model::find($item->id));
     }
-
 }

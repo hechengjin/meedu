@@ -1,5 +1,13 @@
 <?php
 
+/*
+ * This file is part of the Qsnh/meedu.
+ *
+ * (c) XiaoTeng <616896861@qq.com>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ */
 
 namespace Tests\Feature\BackendApi;
 
@@ -9,7 +17,6 @@ use Illuminate\Support\Facades\DB;
 
 class AdministratorTest extends Base
 {
-
     public const MODEL = Administrator::class;
 
     public const MODEL_NAME = 'administrator';
@@ -24,7 +31,7 @@ class AdministratorTest extends Base
     protected $admin;
     protected $role;
 
-    public function setUp()
+    public function setUp():void
     {
         parent::setUp();
         $this->admin = factory(Administrator::class)->create();
@@ -35,7 +42,7 @@ class AdministratorTest extends Base
         ]);
     }
 
-    public function tearDown()
+    public function tearDown():void
     {
         $this->admin->delete();
         parent::tearDown();
@@ -74,5 +81,4 @@ class AdministratorTest extends Base
         // 超管无法删除
         $this->assertResponseSuccess($response);
     }
-
 }

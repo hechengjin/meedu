@@ -1,15 +1,24 @@
 <?php
 
+/*
+ * This file is part of the Qsnh/meedu.
+ *
+ * (c) XiaoTeng <616896861@qq.com>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ */
 
 namespace Tests\Services\Member;
 
-use App\Services\Member\Interfaces\SocialiteServiceInterface;
-use App\Services\Member\Models\Socialite;
-use App\Services\Member\Models\User;
-use App\Services\Member\Services\SocialiteService;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 use Tests\TestCase;
+use Illuminate\Support\Str;
+use App\Exceptions\ServiceException;
+use App\Services\Member\Models\User;
+use Illuminate\Support\Facades\Auth;
+use App\Services\Member\Models\Socialite;
+use App\Services\Member\Services\SocialiteService;
+use App\Services\Member\Interfaces\SocialiteServiceInterface;
 
 class SocialiteServiceTest extends TestCase
 {
@@ -19,7 +28,7 @@ class SocialiteServiceTest extends TestCase
      */
     protected $service;
 
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         $this->service = $this->app->make(SocialiteServiceInterface::class);
@@ -43,11 +52,10 @@ class SocialiteServiceTest extends TestCase
         $this->assertEquals($user->id, $userId);
     }
 
-    /**
-     * @expectedException \App\Exceptions\ServiceException
-     */
     public function test_bindApp_repeat()
     {
+        $this->expectException(ServiceException::class);
+
         $user = factory(User::class)->create();
         $app = 'app1';
         $appUserId = Str::random();
@@ -82,5 +90,4 @@ class SocialiteServiceTest extends TestCase
         $this->service->cancelBind($app);
         $this->assertEmpty(Socialite::whereUserId($user->id)->where('app', $app)->whereAppUserId($appUserId)->first());
     }
-
 }

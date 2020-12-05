@@ -12,13 +12,14 @@
 Route::get('/', 'Frontend\IndexController@index')->name('index');
 Route::redirect('/home', '/');
 Route::get('/user/protocol', 'Frontend\IndexController@userProtocol')->name('user.protocol');
+Route::get('/user/private_protocol', 'Frontend\IndexController@userPrivateProtocol')->name('user.private_protocol');
 Route::get('/aboutus', 'Frontend\IndexController@aboutus')->name('aboutus');
 // 登录
 Route::get('/login', 'Frontend\LoginController@showLoginPage')->name('login');
-Route::post('/login', 'Frontend\LoginController@passwordLoginHandler')->middleware(['throttle:10,1']);
+Route::post('/login', 'Frontend\LoginController@passwordLoginHandler')->middleware(['throttle:30,1']);
 // 注册
 Route::get('/register', 'Frontend\RegisterController@showRegisterPage')->name('register');
-Route::post('/register', 'Frontend\RegisterController@passwordRegisterHandler')->middleware(['sms.check', 'throttle:10,1']);
+Route::post('/register', 'Frontend\RegisterController@passwordRegisterHandler')->middleware(['sms.check', 'throttle:30,1']);
 // 登出
 Route::post('/logout', 'Frontend\LoginController@logout')->name('logout');
 // 找回密码
@@ -46,6 +47,7 @@ Route::get('/courses', 'Frontend\CourseController@index')->name('courses');
 Route::get('/videos', 'Frontend\VideoController@index')->name('videos');
 // 课程详情
 Route::get('/course/{id}/{slug}', 'Frontend\CourseController@show')->name('course.show');
+Route::get('/course/attach/{id}/download', 'Frontend\CourseController@attachDownload')->name('course.attach.download')->middleware(['auth']);
 // 视频详情
 Route::get('/course/{course_id}/video/{id}/{slug}', 'Frontend\VideoController@show')->name('video.show');
 // 搜索
@@ -61,7 +63,7 @@ Route::get('/announcement/{id}', 'Frontend\AnnouncementController@show')->name('
 
 Route::group([
     'prefix' => '/member',
-    'middleware' => ['auth'],
+    'middleware' => ['auth', 'login.status.check'],
     'namespace' => 'Frontend'
 ], function () {
     Route::get('/', 'MemberController@index')->name('member');
@@ -84,6 +86,8 @@ Route::group([
     Route::get('/promo_code', 'MemberController@showPromoCodePage')->name('member.promo_code');
     Route::post('/promo_code', 'MemberController@generatePromoCode');
     Route::post('/invite_balance_withdraw_orders', 'MemberController@createInviteBalanceWithdrawOrder');
+    Route::get('/credit1_records', 'MemberController@credit1Records')->name('member.credit1_records');
+    Route::get('/profile', 'MemberController@showProfilePage')->name('member.profile');
 
     // 图片上传
     Route::post('/upload/image', 'UploadController@imageHandler')->name('upload.image');
@@ -118,5 +122,8 @@ Route::group([
         Route::post('/message/read', 'AjaxController@notificationMarkAsRead')->name('ajax.message.read');
         Route::post('/inviteBalanceWithdraw', 'AjaxController@inviteBalanceWithdraw')->name('ajax.invite_balance.withdraw');
         Route::post('/course/like/{id}', 'AjaxController@likeACourse')->name('ajax.course.like');
+
+        // 用户资料编辑
+        Route::post('/member/profile', 'AjaxController@profileUpdate')->name('ajax.member.profile.update');
     });
 });

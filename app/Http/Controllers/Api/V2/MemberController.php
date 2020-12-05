@@ -15,7 +15,6 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Constant\ApiV2Constant;
 use App\Businesses\BusinessState;
-use App\Constant\FrontendConstant;
 use App\Exceptions\ApiV2Exception;
 use Illuminate\Support\Facades\Auth;
 use App\Services\Base\Services\ConfigService;
@@ -24,6 +23,7 @@ use App\Services\Member\Services\UserService;
 use App\Services\Order\Services\OrderService;
 use App\Services\Course\Services\VideoService;
 use App\Services\Course\Services\CourseService;
+use App\Services\Member\Services\CreditService;
 use App\Http\Requests\ApiV2\AvatarChangeRequest;
 use App\Http\Requests\ApiV2\MobileChangeRequest;
 use App\Services\Order\Services\PromoCodeService;
@@ -37,6 +37,7 @@ use App\Services\Order\Interfaces\OrderServiceInterface;
 use App\Http\Requests\ApiV2\InviteBalanceWithdrawRequest;
 use App\Services\Course\Interfaces\VideoServiceInterface;
 use App\Services\Course\Interfaces\CourseServiceInterface;
+use App\Services\Member\Interfaces\CreditServiceInterface;
 use App\Services\Member\Services\UserInviteBalanceService;
 use App\Services\Order\Interfaces\PromoCodeServiceInterface;
 use App\Services\Member\Interfaces\SocialiteServiceInterface;
@@ -788,15 +789,15 @@ class MemberController extends BaseController
             'list' => $list,
             'total' => $total,
         ] = $this->userService->inviteUsers($page, $pageSize);
-    
+
         $list = array_map(function ($item) {
-            $mobile = '******'.mb_substr($item['mobile'], 6);
+            $mobile = '******' . mb_substr($item['mobile'], 6);
             return [
                 'mobile' => $mobile,
                 'created_at' => Carbon::parse($item['created_at'])->format('Y-m-d'),
             ];
         }, $list);
-        
+
         return $this->data([
             'total' => $total,
             'data' => $list,
@@ -826,12 +827,12 @@ class MemberController extends BaseController
     {
         $page = $request->input('page', 1);
         $pageSize = $request->input('page_size', 10);
-        
+
         [
-             'list' => $list,
+            'list' => $list,
             'total' => $total,
         ] = $this->userInviteBalanceService->currentUserOrderPaginate($page, $pageSize);
-        
+
         return $this->data([
             'total' => $total,
             'data' => $list,
@@ -839,33 +840,130 @@ class MemberController extends BaseController
     }
 
     /**
-    * @OA\Post(
-    *     path="/member/withdraw",
-    *     summary="邀请余额提现",
-    *     tags={"用户"},
-    *     @OA\RequestBody(description="",@OA\JsonContent(
-    *         @OA\Property(property="channel",description="渠道",type="string"),
-    *         @OA\Property(property="channel_name",description="姓名",type="string"),
-    *         @OA\Property(property="channel_account",description="账号",type="string"),
-    *         @OA\Property(property="total",description="提现金额",type="integer"),
-    *     )),
-    *     @OA\Response(
-    *         description="",response=200,
-    *         @OA\JsonContent(
-    *             @OA\Property(property="code",type="integer",description="状态码"),
-    *             @OA\Property(property="message",type="string",description="消息"),
-    *             @OA\Property(property="data",type="object",description=""),
-    *         )
-    *     )
-    * )
-    *
-    * @param InviteBalanceWithdrawRequest $request
-    * @return void
-    */
+     * @OA\Post(
+     *     path="/member/withdraw",
+     *     summary="邀请余额提现",
+     *     tags={"用户"},
+     *     @OA\RequestBody(description="",@OA\JsonContent(
+     *         @OA\Property(property="channel",description="渠道",type="string"),
+     *         @OA\Property(property="channel_name",description="姓名",type="string"),
+     *         @OA\Property(property="channel_account",description="账号",type="string"),
+     *         @OA\Property(property="total",description="提现金额",type="integer"),
+     *     )),
+     *     @OA\Response(
+     *         description="",response=200,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="code",type="integer",description="状态码"),
+     *             @OA\Property(property="message",type="string",description="消息"),
+     *             @OA\Property(property="data",type="object",description=""),
+     *         )
+     *     )
+     * )
+     */
     public function createWithdraw(InviteBalanceWithdrawRequest $request)
     {
         $data = $request->filldata();
         $this->userInviteBalanceService->createCurrentUserWithdraw($data['total'], $data['channel']);
+        return $this->success();
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/member/credit1Records",
+     *     summary="积分明细",
+     *     tags={"用户"},
+     *     @OA\Response(
+     *         description="",response=200,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="code",type="integer",description="状态码"),
+     *             @OA\Property(property="message",type="string",description="消息"),
+     *             @OA\Property(property="data",type="object",description="",
+     *                 @OA\Property(property="total",type="integer",description="总数"),
+     *                 @OA\Property(property="data",type="array",description="列表",@OA\Items(ref="#/components/schemas/UserCredit1Record")),
+     *             ),
+     *         )
+     *     )
+     * )
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function credit1Records(Request $request, CreditServiceInterface $creditService)
+    {
+        /**
+         * @var CreditService $creditService
+         */
+
+        $page = $request->input('page', 1);
+        $pageSize = $request->input('page_size', 10);
+
+        $list = $creditService->getCredit1RecordsPaginate($this->id(), $page, $pageSize);
+        $list = arr2_clear($list, ApiV2Constant::MODEL_CREDIT1_RECORD_FIELD);
+
+        $total = $creditService->getCredit1RecordsCount($this->id());
+
+        return $this->data([
+            'total' => $total,
+            'data' => $list,
+        ]);
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/member/profile",
+     *     summary="我的资料",
+     *     tags={"用户"},
+     *     @OA\Response(
+     *         description="",response=200,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="code",type="integer",description="状态码"),
+     *             @OA\Property(property="message",type="string",description="消息"),
+     *             @OA\Property(property="data",type="object",description="",
+     *                 @OA\Property(property="total",type="integer",description="总数"),
+     *                 @OA\Property(property="data",type="array",description="列表",@OA\Items(ref="#/components/schemas/MemberProfile")),
+     *             ),
+     *         )
+     *     )
+     * )
+     */
+    public function profile()
+    {
+        $profile = $this->userService->getProfile($this->id());
+        $profile = arr1_clear($profile, ApiV2Constant::MODEL_MEMBER_PROFILE_FIELD);
+        return $this->data($profile);
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/member/profile",
+     *     summary="用户资料编辑",
+     *     tags={"用户"},
+     *     @OA\RequestBody(description="",@OA\JsonContent(
+     *         @OA\Property(property="real_name",description="真实姓名",type="string"),
+     *         @OA\Property(property="age",description="年龄",type="integer"),
+     *         @OA\Property(property="gender",description="性别[男,女,空字符]",type="string"),
+     *         @OA\Property(property="birthday",description="生日",type="string"),
+     *         @OA\Property(property="address",description="住址",type="string"),
+     *         @OA\Property(property="profession",description="职业",type="string"),
+     *         @OA\Property(property="graduated_school",description="毕业院校",type="string"),
+     *         @OA\Property(property="diploma",description="毕业证书",type="string"),
+     *         @OA\Property(property="id_number",description="身份证号",type="string"),
+     *         @OA\Property(property="id_frontend_thumb",description="身份证正面照",type="string"),
+     *         @OA\Property(property="id_backend_thumb",description="身份证反面照",type="string"),
+     *         @OA\Property(property="id_hand_thumb",description="手持身份证照",type="string"),
+     *     )),
+     *     @OA\Response(
+     *         description="",response=200,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="code",type="integer",description="状态码"),
+     *             @OA\Property(property="message",type="string",description="消息"),
+     *             @OA\Property(property="data",type="object",description=""),
+     *         )
+     *     )
+     * )
+     */
+    public function profileUpdate(Request $request)
+    {
+        $data = $request->all();
+        $this->userService->saveProfile($this->id(), $data);
         return $this->success();
     }
 }

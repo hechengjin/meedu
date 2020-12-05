@@ -12,6 +12,7 @@
 namespace App\Services\Member\Services;
 
 use Carbon\Carbon;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use App\Businesses\BusinessState;
 use App\Events\UserRegisterEvent;
@@ -23,8 +24,11 @@ use Illuminate\Support\Facades\Hash;
 use App\Events\UserVideoWatchedEvent;
 use App\Services\Member\Models\UserVideo;
 use App\Services\Member\Models\UserCourse;
+use App\Services\Member\Models\UserProfile;
 use App\Services\Base\Services\ConfigService;
+use App\Services\Member\Models\UserWatchStat;
 use App\Services\Member\Models\UserLikeCourse;
+use App\Services\Member\Models\UserLoginRecord;
 use App\Services\Member\Models\UserVideoWatchRecord;
 use App\Services\Base\Interfaces\ConfigServiceInterface;
 use App\Services\Member\Interfaces\UserServiceInterface;
@@ -163,13 +167,13 @@ class UserService implements UserServiceInterface
      * @param string $mobile
      * @param string $password
      * @param string $nickname
-     *
+     * @param string $avatar
      * @return array
      */
-    public function createWithMobile(string $mobile, string $password, string $nickname): array
+    public function createWithMobile(string $mobile, string $password, string $nickname, string $avatar = ''): array
     {
         $user = User::create([
-            'avatar' => $this->configService->getMemberDefaultAvatar(),
+            'avatar' => $avatar ?: $this->configService->getMemberDefaultAvatar(),
             'nick_name' => $nickname ?: Str::random(16),
             'mobile' => $mobile,
             'password' => Hash::make($password ?: Str::random(10)),
@@ -178,6 +182,7 @@ class UserService implements UserServiceInterface
             'role_id' => 0,
             'role_expired_at' => Carbon::now(),
             'is_set_nickname' => $nickname ? 1 : 0,
+            'is_password_set' => $password ? 1 : 0,
         ]);
 
         event(new UserRegisterEvent($user->id));
@@ -407,19 +412,21 @@ class UserService implements UserServiceInterface
     }
 
     /**
+     * @param int $userId
      * @return int
      */
-    public function getCurrentUserCourseCount(): int
+    public function getUserCourseCount(int $userId): int
     {
-        return (int)UserCourse::whereUserId(Auth::id())->count();
+        return (int)UserCourse::query()->where('user_id', $userId)->count();
     }
 
     /**
+     * @param int $userId
      * @return int
      */
-    public function getCurrentUserVideoCount(): int
+    public function getUserVideoCount(int $userId): int
     {
-        return (int)UserVideo::whereUserId(Auth::id())->count();
+        return (int)UserVideo::query()->where('user_id', $userId)->count();
     }
 
     /**
@@ -523,8 +530,8 @@ class UserService implements UserServiceInterface
             ->first();
 
         if ($record) {
-            if ($record->watched_at === null && $record->watch_seconds < $duration) {
-                // 如果有记录，那么在没有看完的情况下继续记录
+            if ($record->watched_at === null && $record->watch_seconds <= $duration) {
+                // 如果有记录[没看完 && 当前时间超过已记录的时间]
                 $data = ['watch_seconds' => $duration];
                 $isWatched && $data['watched_at'] = Carbon::now();
                 $record->fill($data)->save();
@@ -603,5 +610,103 @@ class UserService implements UserServiceInterface
         return User::query()
             ->where('role_expired_at', '<=', Carbon::now())
             ->update(['role_id' => 0, 'role_expired_at' => null]);
+    }
+
+    /**
+     * 用户登录记录
+     *
+     * @param int $userId
+     * @param string $platform
+     * @param string $ip
+     * @param string $at
+     */
+    public function createLoginRecord(int $userId, string $platform, string $ip, string $at): void
+    {
+        $record = UserLoginRecord::create([
+            'user_id' => $userId,
+            'ip' => $ip,
+            'area' => '',
+            'platform' => $platform,
+            'at' => $at,
+        ]);
+
+        User::query()->where('id', $userId)->update(['last_login_id' => $record->id]);
+    }
+
+    /**
+     * @param int $userId
+     * @param string $platform
+     * @return array
+     */
+    public function findUserLastLoginRecord(int $userId, string $platform): array
+    {
+        $record = UserLoginRecord::query()
+            ->where('user_id', $userId)
+            ->when($platform, function ($query) use ($platform) {
+                $query->where('platform', $platform);
+            })
+            ->orderByDesc('id')
+            ->first();
+        return $record ? $record->toArray() : [];
+    }
+
+    /**
+     * 用户视频观看时间统计
+     * @param int $userId
+     * @param int $seconds
+     */
+    public function watchStatSave(int $userId, int $seconds): void
+    {
+        $year = date('Y');
+        $month = date('m');
+        $day = date('d');
+        $record = UserWatchStat::query()
+            ->where('user_id', $userId)
+            ->where('year', $year)
+            ->where('month', $month)
+            ->where('day', $day)
+            ->first();
+        if ($record) {
+            // todo 用户量大了之后此处频繁写入MySQL的CPU会飚高
+            UserWatchStat::query()
+                ->where('id', $record['id'])
+                ->where('seconds', $record['seconds'])
+                ->update(['seconds' => $record['seconds'] + $seconds]);
+        } else {
+            UserWatchStat::create([
+                'user_id' => $userId,
+                'year' => $year,
+                'month' => $month,
+                'day' => $day,
+                'seconds' => $seconds,
+            ]);
+        }
+    }
+
+    /**
+     * @param int $userId
+     * @return array
+     */
+    public function getProfile(int $userId): array
+    {
+        $profile = UserProfile::query()->where('user_id', $userId)->first();
+        return $profile ? $profile->toArray() : [];
+    }
+
+    /**
+     * @param int $userId
+     * @param array $profileData
+     */
+    public function saveProfile(int $userId, array $profileData): void
+    {
+        $profileData = Arr::only($profileData, UserProfile::EDIT_COLUMNS);
+        isset($profileData['age']) && $profileData['age'] = (int)$profileData['age'];
+        $profile = UserProfile::query()->where('user_id', $userId)->first();
+        if ($profile) {
+            $profile->fill($profileData)->save();
+        } else {
+            $profileData['user_id'] = $userId;
+            UserProfile::create($profileData);
+        }
     }
 }

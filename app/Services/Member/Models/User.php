@@ -35,7 +35,7 @@ class User extends Authenticatable implements JWTSubject
         'is_lock', 'is_active', 'role_id', 'role_expired_at',
         'invite_user_id', 'invite_balance', 'invite_user_expired_at',
         'is_password_set', 'is_set_nickname', 'is_used_promo_code',
-        'register_ip', 'register_area',
+        'register_ip', 'register_area', 'last_login_id',
     ];
 
     public function getJWTIdentifier()
@@ -43,6 +43,10 @@ class User extends Authenticatable implements JWTSubject
         return $this->getKey();
     }
 
+    /**
+     * 写入到jwt中的数据
+     * @return array
+     */
     public function getJWTCustomClaims()
     {
         return [];
@@ -88,5 +92,21 @@ class User extends Authenticatable implements JWTSubject
     public function inviteBalanceWithdrawOrders()
     {
         return $this->hasMany(UserInviteBalanceWithdrawOrder::class, 'user_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function tags()
+    {
+        return $this->belongsToMany(UserTag::class, 'user_tag', 'user_id', 'tag_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function profile()
+    {
+        return $this->hasOne(UserProfile::class, 'user_id');
     }
 }

@@ -1,18 +1,26 @@
 <?php
 
+/*
+ * This file is part of the Qsnh/meedu.
+ *
+ * (c) XiaoTeng <616896861@qq.com>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ */
 
 namespace Tests\Services\Course;
 
-
-use App\Services\Course\Interfaces\CourseServiceInterface;
-use App\Services\Course\Models\Course;
-use App\Services\Course\Models\CourseCategory;
-use App\Services\Course\Models\CourseChapter;
-use App\Services\Course\Models\CourseUserRecord;
-use App\Services\Course\Services\CourseService;
-use App\Services\Member\Models\User;
 use Carbon\Carbon;
 use Tests\TestCase;
+use App\Services\Member\Models\User;
+use App\Services\Course\Models\Course;
+use App\Services\Course\Models\CourseChapter;
+use App\Services\Course\Models\CourseCategory;
+use App\Services\Course\Services\CourseService;
+use App\Services\Course\Models\CourseUserRecord;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use App\Services\Course\Interfaces\CourseServiceInterface;
 
 class CourseServiceTest extends TestCase
 {
@@ -22,7 +30,7 @@ class CourseServiceTest extends TestCase
      */
     protected $courseService;
 
-    public function setUp()
+    public function setUp():void
     {
         parent::setUp();
         $this->courseService = $this->app->make(CourseServiceInterface::class);
@@ -73,11 +81,10 @@ class CourseServiceTest extends TestCase
         $this->assertEquals($course->title, $c['title']);
     }
 
-    /**
-     * @expectedException \Illuminate\Database\Eloquent\ModelNotFoundException
-     */
     public function test_find_with_no_published()
     {
+        $this->expectException(ModelNotFoundException::class);
+
         $course = factory(Course::class)->create([
             'is_show' => Course::SHOW_YES,
             'published_at' => Carbon::now()->addDays(1),
@@ -85,11 +92,10 @@ class CourseServiceTest extends TestCase
         $c = $this->courseService->find($course->id);
     }
 
-    /**
-     * @expectedException \Illuminate\Database\Eloquent\ModelNotFoundException
-     */
     public function test_find_with_no_show()
     {
+        $this->expectException(ModelNotFoundException::class);
+
         $course = factory(Course::class)->create([
             'is_show' => Course::SHOW_NO,
             'published_at' => Carbon::now()->subDays(1),
@@ -224,5 +230,4 @@ class CourseServiceTest extends TestCase
         $course->refresh();
         $this->assertEquals(1, $course->user_count);
     }
-
 }

@@ -11,6 +11,7 @@
 
 namespace Tests\Feature\Api\V2;
 
+use App\Constant\CacheConstant;
 use Illuminate\Http\UploadedFile;
 use App\Services\Member\Models\User;
 use App\Services\Order\Models\Order;
@@ -19,8 +20,10 @@ use Illuminate\Support\Facades\Storage;
 use App\Services\Order\Models\PromoCode;
 use App\Services\Member\Models\UserVideo;
 use App\Services\Member\Models\UserCourse;
+use App\Services\Member\Models\UserProfile;
 use App\Services\Member\Models\UserLikeCourse;
 use App\Services\Course\Models\CourseUserRecord;
+use App\Services\Member\Models\UserCreditRecord;
 use App\Services\Member\Models\UserJoinRoleRecord;
 use App\Services\Base\Interfaces\CacheServiceInterface;
 use App\Services\Member\Models\UserInviteBalanceRecord;
@@ -31,7 +34,7 @@ class MemberTest extends Base
 {
     protected $member;
 
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         $this->member = factory(User::class)->create();
@@ -49,7 +52,7 @@ class MemberTest extends Base
     public function test_password()
     {
         $cacheService = $this->app->make(CacheServiceInterface::class);
-        $cacheService->put('m:' . $this->member->mobile, 'code', 10);
+        $cacheService->put(get_cache_key(CacheConstant::MOBILE_CODE['name'], $this->member->mobile), 'code', 1);
         $response = $this->user($this->member)->postJson('api/v2/member/detail/password', [
             'mobile_code' => 'code',
             'mobile' => $this->member->mobile,
@@ -63,7 +66,7 @@ class MemberTest extends Base
     public function test_change_mobile()
     {
         $cacheService = $this->app->make(CacheServiceInterface::class);
-        $cacheService->put('m:17898765423', 'code', 10);
+        $cacheService->put(get_cache_key(CacheConstant::MOBILE_CODE['name'], '17898765423'), 'code', 1);
         $response = $this->user($this->member)->postJson('api/v2/member/detail/mobile', [
             'mobile_code' => 'code',
             'mobile' => '17898765423',
@@ -77,7 +80,8 @@ class MemberTest extends Base
     {
         factory(User::class)->create(['mobile' => '12345679876']);
         $cacheService = $this->app->make(CacheServiceInterface::class);
-        $cacheService->put('m:12345679876', 'code', 10);
+        $cacheService->put(get_cache_key(CacheConstant::MOBILE_CODE['name'], '12345679876'), 'code', 1);
+
         $response = $this->user($this->member)->postJson('api/v2/member/detail/mobile', [
             'mobile_code' => 'code',
             'mobile' => '12345679876',
@@ -291,5 +295,119 @@ class MemberTest extends Base
         $response = $this->user($this->member)->getJson('api/v2/member/unreadNotificationCount');
         $response = $this->assertResponseSuccess($response);
         $this->assertEquals(3, $response['data']);
+    }
+
+    public function test_credit1Records()
+    {
+        UserCreditRecord::create([
+            'field' => 'credit1',
+            'user_id' => $this->member->id,
+            'sum' => 101,
+            'remark' => 'meedu test1'
+        ]);
+        UserCreditRecord::create([
+            'field' => 'credit1',
+            'user_id' => $this->member->id,
+            'sum' => 102,
+            'remark' => 'meedu test2'
+        ]);
+        UserCreditRecord::create([
+            'field' => 'credit1',
+            'user_id' => $this->member->id,
+            'sum' => 103,
+            'remark' => 'meedu test3'
+        ]);
+        $response = $this->user($this->member)->getJson('api/v2/member/credit1Records?page=1&page_size=8');
+        $response = $this->assertResponseSuccess($response);
+        $this->assertEquals(3, $response['data']['total']);
+        $this->assertEquals(3, count($response['data']['data']));
+
+        $response = $this->user($this->member)->getJson('api/v2/member/credit1Records?page=2&page_size=8');
+        $response = $this->assertResponseSuccess($response);
+        $this->assertEquals(3, $response['data']['total']);
+        $this->assertEquals(0, count($response['data']['data']));
+    }
+
+    public function test_profile()
+    {
+        $response = $this->user($this->member)->getJson('api/v2/member/profile');
+        $response = $this->assertResponseSuccess($response);
+        $this->assertEmpty($response['data']);
+
+        $profileData = [
+            'user_id' => $this->member->id,
+            'real_name' => 'meedu',
+            'age' => 20,
+            'birthday' => '20180610',
+            'address' => '杭州西湖',
+            'profession' => '开发',
+            'graduated_school' => '嘟嘟嘟嘟',
+            'id_number' => '1919828292',
+        ];
+
+        UserProfile::create($profileData);
+
+        $response = $this->user($this->member)->getJson('api/v2/member/profile');
+        $response = $this->assertResponseSuccess($response);
+        $data = $response['data'];
+        $this->assertEquals($profileData['real_name'], $data['real_name']);
+        $this->assertEquals($profileData['age'], $data['age']);
+        $this->assertEquals($profileData['birthday'], $data['birthday']);
+        $this->assertEquals($profileData['address'], $data['address']);
+        $this->assertEquals($profileData['profession'], $data['profession']);
+        $this->assertEquals($profileData['graduated_school'], $data['graduated_school']);
+        $this->assertEquals($profileData['id_number'], $data['id_number']);
+    }
+
+    public function test_profile_update()
+    {
+        $profileData = [
+            'user_id' => $this->member->id,
+            'real_name' => 'meedu',
+            'age' => 20,
+            'birthday' => '20180610',
+            'address' => '杭州西湖',
+            'profession' => '开发',
+            'graduated_school' => '嘟嘟嘟嘟',
+            'id_number' => '1919828292',
+        ];
+        $response = $this->user($this->member)->postJson('api/v2/member/profile', $profileData);
+        $this->assertResponseSuccess($response);
+
+        $data = UserProfile::query()->where('user_id', $this->member->id)->first();
+        $this->assertEquals($profileData['real_name'], $data['real_name']);
+        $this->assertEquals($profileData['age'], $data['age']);
+        $this->assertEquals($profileData['birthday'], $data['birthday']);
+        $this->assertEquals($profileData['address'], $data['address']);
+        $this->assertEquals($profileData['profession'], $data['profession']);
+        $this->assertEquals($profileData['graduated_school'], $data['graduated_school']);
+        $this->assertEquals($profileData['id_number'], $data['id_number']);
+    }
+
+    public function test_profile_update_has_exists_profile()
+    {
+        UserProfile::create(['user_id' => $this->member->id]);
+
+        $profileData = [
+            'user_id' => $this->member->id,
+            'real_name' => 'meedu',
+            'age' => 20,
+            'birthday' => '20180610',
+            'address' => '杭州西湖',
+            'profession' => '开发',
+            'graduated_school' => '嘟嘟嘟嘟',
+            'id_number' => '1919828292',
+        ];
+        $response = $this->user($this->member)->postJson('api/v2/member/profile', $profileData);
+        $this->assertResponseSuccess($response);
+
+        $data = UserProfile::query()->where('user_id', $this->member->id)->first();
+        $this->assertEquals($profileData['real_name'], $data['real_name']);
+        $this->assertEquals($profileData['age'], $data['age']);
+        $this->assertEquals($profileData['birthday'], $data['birthday']);
+        $this->assertEquals($profileData['address'], $data['address']);
+        $this->assertEquals($profileData['profession'], $data['profession']);
+        $this->assertEquals($profileData['graduated_school'], $data['graduated_school']);
+        $this->assertEquals($profileData['id_number'], $data['id_number']);
     }
 }
