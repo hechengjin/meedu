@@ -1102,6 +1102,14 @@ class AppConfigSeeder extends Seeder
                 'value' => '',
                 'is_private' => 1,
             ],
+            [
+                'group' => '微信公众号',
+                'name' => '启用授权登录',
+                'field_type' => 'switch',
+                'sort' => 6,
+                'key' => 'meedu.mp_wechat.enabled_oauth_login',
+                'value' => 0,
+            ],
 
             // 注册送VIP
             [
@@ -1127,6 +1135,17 @@ class AppConfigSeeder extends Seeder
                 'sort' => 2,
                 'key' => 'meedu.member.register.vip.days',
                 'value' => 0,
+            ],
+
+            // 高德地图配置
+            [
+                'group' => '高德地图',
+                'name' => '应用Key',
+                'field_type' => 'text',
+                'sort' => 1,
+                'key' => 'meedu.services.imap.key',
+                'value' => '',
+                'is_private' => 1,
             ],
         ];
 
